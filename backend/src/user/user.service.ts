@@ -8,20 +8,29 @@ import { toFileStream } from 'qrcode';
 import { Response } from 'express';
 
 @Injectable()
-export class UserService {
-    constructor(
-        @InjectRepository(UserEntity)
-        private userRepository: Repository<UserEntity>,
-    ) {}
+export class UserService
+{
+    constructor(@InjectRepository(UserEntity) private userRepository: Repository<UserEntity>) {}
 
-    async createUser(newUser: NewUserDto): Promise<UserEntity> { //console.log ici -> Done : on recoit tout le user42
-      let user = this.userRepository.create(newUser);
-      try {
-        user = await this.userRepository.save(user);
-      } catch (e) {
-        throw new ConflictException('Username must be unique'); //probably other possible errors
-      }
-      return user;
+    async createUser(newUser: NewUserDto): Promise<UserEntity> //console.log ici -> Done : on recoit tout le user42
+    {
+        let user = this.userRepository.create(newUser);
+        try {
+          user = await this.userRepository.save(user);
+        } catch (e) {
+          throw new ConflictException('Username must be unique'); //probably other possible errors
+        }
+        return user;
+    }
+
+    async paginate(page: number = 1): Promise<any>
+    {
+        const take = 15;
+        const [users, total] = await this.userRepository.findAndCount({
+            take,
+            skip: (page - 1) * take
+        });
+        return { data: users, meta: { total, page, last_page: Math.ceil(total / take)}};
     }
 
     async getAllUsers()
@@ -50,13 +59,15 @@ export class UserService {
       return await this.userRepository.findOne({ username });
     }
 
-    async setTfaSecret(secret: string, id: number) {
+    async setTfaSecret(secret: string, id: number)
+    {
       return this.userRepository.update(id, {
         tfaSecret: secret
       });
     }
 
-    async generateTfaSecret(user: UserEntity) {
+    async generateTfaSecret(user: UserEntity)
+    {
       const secret = authenticator.generateSecret();
 
       const otpauthUrl = authenticator.keyuri(user.username, process.env.APP_NAME, secret);
@@ -69,30 +80,35 @@ export class UserService {
       }
     }
 
-    async pipeQrCodeStream(stream: Response, otpauthUrl: string) {
+    async pipeQrCodeStream(stream: Response, otpauthUrl: string)
+    {
       return toFileStream(stream, otpauthUrl);
     }
 
-    async turnOnTfa(id: number) {
+    async turnOnTfa(id: number)
+    {
       return this.userRepository.update(id, {
         tfaEnabled: true
       });
     }
 
-    isTfaCodeValid(tfaCode: string, user: UserEntity) {
+    isTfaCodeValid(tfaCode: string, user: UserEntity)
+    {
       return authenticator.verify({
         token: tfaCode,
         secret: user.tfaSecret
       })
     }
 
-    updateStatus(id: number, status: UserStatus) {
+    updateStatus(id: number, status: UserStatus)
+    {
       return this.userRepository.update(id, {
         status
       });
     }
 
-    async requestFriend(user: UserEntity, id: number) {
+    async requestFriend(user: UserEntity, id: number)
+    {
       const friend = await this.getUserById(id);
       if (!friend)
         throw new NotFoundException('User not found');
@@ -101,7 +117,8 @@ export class UserService {
       return await this.userRepository.save(user);
     }
 
-    async deleteFriend(user: UserEntity, id: number) {
+    async deleteFriend(user: UserEntity, id: number)
+    {
       const friendRemove = await this.getUserById(id);
       if (!friendRemove)
         throw new NotFoundException('User not found');
@@ -114,7 +131,8 @@ export class UserService {
       return await this.userRepository.save(user);
     }
 
-    async getRequestedUsers(id): Promise<UserEntity[]> {
+    async getRequestedUsers(id): Promise<UserEntity[]>
+    {
         return await this.userRepository.query(
           ` SELECT *
             FROM "user" U
@@ -129,7 +147,8 @@ export class UserService {
         //return await this.userRepository.createQueryBuilder('user').leftJoinAndSelect('user.friends', 'user').getMany();
     }
 
-    async getRequestedByUsers(id): Promise<UserEntity[]> {
+    async getRequestedByUsers(id): Promise<UserEntity[]>
+    {
       return await this.userRepository.query(
         ` SELECT *
           FROM "user" U
@@ -141,15 +160,17 @@ export class UserService {
               );  `,
         [id],
       );
-  }
+    }
 
-    async getFriends(id): Promise<UserEntity[]> {
+    async getFriends(id): Promise<UserEntity[]>
+    {
       const requests = await this.getRequestedUsers(id);
       const requestedBy = await this.getRequestedByUsers(id);
       return requests.filter((user) => requestedBy.some((usr) => user.id === usr.id));
     }
 
-    async blockUser(user: UserEntity, id: number) {
+    async blockUser(user: UserEntity, id: number)
+    {
       const toBlock = await this.getUserById(id);
       if (!toBlock)
         throw new NotFoundException('User not found');
@@ -179,13 +200,15 @@ export class UserService {
     //     return await this.userRepository.save(user);
     // }
 
-    async unblockUser(user: UserEntity, id: number) {
+    async unblockUser(user: UserEntity, id: number)
+    {
       user.blockedUsers = await this.getBlockedUsers(user.id);
       user.blockedUsers = user.blockedUsers.filter((usr) => {return usr.id !== id});
       return await this.userRepository.save(user);
     }
 
-    async getBlockedUsers(id): Promise<UserEntity[]> {
+    async getBlockedUsers(id): Promise<UserEntity[]>
+    {
         return await this.userRepository.query(
           ` SELECT *
             FROM "user" U

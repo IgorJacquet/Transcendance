@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Res, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Post, Query, Res, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { join } from 'path';
@@ -8,6 +8,7 @@ import { diskStorage } from 'multer';
 import { of } from 'rxjs';
 import { AuthService } from 'src/auth/auth.service';
 import { User } from 'src/decorators/user.decorator';
+import { UserEntity } from './entities/user.entity';
 
 export const storage = {
     storage: diskStorage({
@@ -33,6 +34,13 @@ export class UserController
     {
     //    this.authService.logOut(response, user);
         return this.authService.deleteUser(user);
+    }
+
+    @Get('allusers')
+    async getAllUsers(@Query('page') page: number): Promise<UserEntity[]>
+    {
+        return this.userService.paginate(page);
+       // return this.userService.getAllUsers();
     }
 
     @Get()
